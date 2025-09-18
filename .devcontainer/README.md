@@ -149,35 +149,76 @@ cjpm run
 
 ## 🔍 故障排除
 
-### 安装失败
+### 常见问题
 
-如果自动安装失败，您可以：
-
-1. 检查网络连接
-2. 手动运行安装脚本：
-   ```bash
-   ./.devcontainer/install-cangjie.sh
-   ```
-3. 查看安装日志
-
-### 环境变量未生效
-
-重新加载环境变量：
+#### 1. 安装脚本权限被拒绝
 ```bash
-source ~/.bashrc
-# 或者
-source ~/.zshrc
+# 错误信息: Permission denied
+# 解决方案:
+chmod +x .devcontainer/install-cangjie.sh
+./.devcontainer/install-cangjie.sh
 ```
 
-### 编译错误
-
-确保项目配置正确：
+#### 2. 网络连接问题
 ```bash
-# 检查编译器
-cjc -v
+# 检查网络连接
+ping -c 1 gitcode.com
+ping -c 1 cangjie-lang.cn
 
-# 检查项目配置
-cat cjpm.toml
+# 如果连接失败，尝试使用代理或稍后重试
+```
+
+#### 3. 下载失败
+```bash
+# 运行备用安装脚本
+./.devcontainer/fallback-install.sh
+
+# 或手动重新运行主脚本
+./.devcontainer/install-cangjie.sh
+```
+
+#### 4. 环境变量未生效
+```bash
+# 重新加载环境变量
+source ~/.bashrc
+source ~/.zshrc  # 如果使用 zsh
+
+# 手动设置环境变量
+export CANGJIE_HOME="/opt/cangjie/cangjie-1.0.1"
+export PATH="$CANGJIE_HOME/bin:$PATH"
+```
+
+### 诊断工具
+
+使用诊断脚本检查安装状态：
+```bash
+./.devcontainer/diagnose.sh
+```
+
+该脚本会检查：
+- 系统信息和网络连接
+- 安装目录和文件权限
+- 仓颉工具和环境变量
+- 配置文件和示例项目
+
+### 手动修复步骤
+
+#### 重新创建安装目录
+```bash
+sudo mkdir -p /opt/cangjie /opt/cangjie-stdx /opt/cangjie-docs
+sudo chown -R codespace:codespace /opt/cangjie*
+```
+
+#### 重新配置环境变量
+```bash
+cat >> ~/.bashrc << 'EOF'
+# 仓颉编程环境
+export CANGJIE_HOME="/opt/cangjie/cangjie-1.0.1"
+export PATH="$CANGJIE_HOME/bin:$PATH"
+export LD_LIBRARY_PATH="$CANGJIE_HOME/lib:$LD_LIBRARY_PATH"
+EOF
+
+source ~/.bashrc
 ```
 
 ## 📋 配置文件说明

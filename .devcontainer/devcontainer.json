@@ -31,14 +31,9 @@
       }
     }
   },
-  "postCreateCommand": ".devcontainer/install-cangjie.sh",
+  "postCreateCommand": "chmod +x .devcontainer/*.sh && (.devcontainer/install-cangjie.sh || .devcontainer/fallback-install.sh)",
   "remoteUser": "codespace",
-  "forwardPorts": [
-    8080,
-    3000,
-    8000,
-    9000
-  ],
+  "forwardPorts": [8080, 3000, 8000, 9000],
   "portsAttributes": {
     "8080": {
       "label": "仓颉 HTTP 服务器",

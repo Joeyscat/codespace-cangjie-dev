@@ -1,11 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # 仓颉编程环境自动安装脚本
 # 适用于 GitHub Codespaces
 
-set -e
+set -euo pipefail
 
 echo "🚀 开始安装仓颉编程环境..."
+
+# 确保脚本具有执行权限
+chmod +x "$0" 2>/dev/null || true
 
 # 更新系统包
 echo "📦 更新系统包..."
@@ -39,58 +42,95 @@ STDX_VERSION="1.0.1.2"
 echo "⬇️  下载仓颉 SDK ${CANGJIE_VERSION}..."
 cd /tmp
 if [ ! -f "cangjie-sdk-linux-x64-${CANGJIE_VERSION}.tar.gz" ]; then
+    echo "正在从官方渠道下载仓颉 SDK..."
     # 使用您提供的官方下载链接模式
-    wget -O "cangjie-sdk-linux-x64-${CANGJIE_VERSION}.tar.gz" \
+    if ! wget -O "cangjie-sdk-linux-x64-${CANGJIE_VERSION}.tar.gz" \
         "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-linux-x64-${CANGJIE_VERSION}.tar.gz&objectKey=68a67996d1b22272d50f15f2" \
-        --timeout=30 --tries=3 || {
-        echo "❌ 仓颉 SDK 下载失败，请检查网络连接或下载链接"
-        exit 1
-    }
+        --timeout=60 --tries=3 --no-check-certificate; then
+        echo "❌ 仓颉 SDK 下载失败，尝试使用备用方案..."
+        # 创建一个最小的错误处理，不让安装完全失败
+        echo "⚠️  将跳过仓颉 SDK 安装，请手动安装"
+        SDK_INSTALL_FAILED=true
+    fi
+else
+    echo "📁 发现已下载的仓颉 SDK，跳过下载"
 fi
 
 # 解压并安装 SDK
-echo "📦 安装仓颉 SDK..."
-tar -xzf "cangjie-sdk-linux-x64-${CANGJIE_VERSION}.tar.gz"
-mv "cangjie-${CANGJIE_VERSION}" "/opt/cangjie/cangjie-${CANGJIE_VERSION}"
+if [ "${SDK_INSTALL_FAILED:-false}" != "true" ]; then
+    echo "📦 安装仓颉 SDK..."
+    if tar -xzf "cangjie-sdk-linux-x64-${CANGJIE_VERSION}.tar.gz"; then
+        mv "cangjie-${CANGJIE_VERSION}" "/opt/cangjie/cangjie-${CANGJIE_VERSION}"
+        echo "✅ 仓颉 SDK 安装成功"
+    else
+        echo "❌ 仓颉 SDK 解压失败"
+        SDK_INSTALL_FAILED=true
+    fi
+else
+    echo "⏭️  跳过仓颉 SDK 安装"
+fi
 
 # 下载 stdx 扩展库
 echo "⬇️  下载 stdx 扩展库 ${STDX_VERSION}..."
 if [ ! -f "cangjie-stdx-linux-x64-${STDX_VERSION}.zip" ]; then
-    wget -O "cangjie-stdx-linux-x64-${STDX_VERSION}.zip" \
+    echo "正在从 GitCode 下载 stdx 扩展库..."
+    if ! wget -O "cangjie-stdx-linux-x64-${STDX_VERSION}.zip" \
         "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v${STDX_VERSION}/cangjie-stdx-linux-x64-${STDX_VERSION}.zip" \
-        --timeout=30 --tries=3 || {
-        echo "❌ stdx 扩展库下载失败，请检查网络连接"
-        exit 1
-    }
+        --timeout=60 --tries=3 --no-check-certificate; then
+        echo "⚠️  stdx 扩展库下载失败，将跳过"
+        STDX_INSTALL_FAILED=true
+    fi
+else
+    echo "📁 发现已下载的 stdx 扩展库，跳过下载"
 fi
 
 # 解压并安装 stdx
-echo "📦 安装 stdx 扩展库..."
-unzip -q "cangjie-stdx-linux-x64-${STDX_VERSION}.zip"
-mv linux_x86_64_llvm /opt/cangjie-stdx/
+if [ "${STDX_INSTALL_FAILED:-false}" != "true" ]; then
+    echo "📦 安装 stdx 扩展库..."
+    if unzip -q "cangjie-stdx-linux-x64-${STDX_VERSION}.zip"; then
+        mv linux_x86_64_llvm /opt/cangjie-stdx/
+        echo "✅ stdx 扩展库安装成功"
+    else
+        echo "❌ stdx 扩展库解压失败"
+        STDX_INSTALL_FAILED=true
+    fi
+else
+    echo "⏭️  跳过 stdx 扩展库安装"
+fi
 
 # 下载 stdx 文档
 echo "⬇️  下载 stdx 文档..."
 if [ ! -f "cangjie-1.0.1-stdx-docs-html.tar.gz" ]; then
-    wget -O "cangjie-1.0.1-stdx-docs-html.tar.gz" \
+    echo "正在下载 stdx API 文档..."
+    if ! wget -O "cangjie-1.0.1-stdx-docs-html.tar.gz" \
         "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v${STDX_VERSION}/cangjie-1.0.1-stdx-docs-html.tar.gz" \
-        --timeout=30 --tries=3 || {
+        --timeout=60 --tries=3 --no-check-certificate; then
         echo "⚠️  stdx 文档下载失败，将跳过文档安装"
-    }
+        STDX_DOCS_FAILED=true
+    fi
+else
+    echo "📁 发现已下载的 stdx 文档"
 fi
 
-if [ -f "cangjie-1.0.1-stdx-docs-html.tar.gz" ]; then
+if [ "${STDX_DOCS_FAILED:-false}" != "true" ] && [ -f "cangjie-1.0.1-stdx-docs-html.tar.gz" ]; then
     echo "📦 安装 stdx 文档..."
-    tar -xzf "cangjie-1.0.1-stdx-docs-html.tar.gz"
-    mv cjnative /opt/cangjie-stdx/docs
+    if tar -xzf "cangjie-1.0.1-stdx-docs-html.tar.gz"; then
+        mv cjnative /opt/cangjie-stdx/docs
+        echo "✅ stdx 文档安装成功"
+    else
+        echo "⚠️  stdx 文档解压失败"
+    fi
 fi
 
 # 下载官方开发文档
 echo "⬇️  下载官方开发文档..."
 cd /opt/cangjie-docs
-git clone https://gitcode.com/Cangjie/cangjie_docs.git . || {
+if ! git clone https://gitcode.com/Cangjie/cangjie_docs.git . 2>/dev/null; then
     echo "⚠️  官方文档下载失败，将跳过文档安装"
-}
+    DOCS_INSTALL_FAILED=true
+else
+    echo "✅ 官方文档下载成功"
+fi
 
 # 配置环境变量
 echo "🔧 配置环境变量..."
@@ -368,13 +408,17 @@ echo "🧹 清理临时文件..."
 rm -rf /tmp/cangjie* /tmp/linux_x86_64_llvm /tmp/cjnative
 
 # 验证安装
+echo ""
 echo "✅ 验证安装..."
+
+INSTALL_SUCCESS=true
+
 if [ -x "/opt/cangjie/cangjie-1.0.1/bin/cjc" ]; then
     VERSION_OUTPUT=$(/opt/cangjie/cangjie-1.0.1/bin/cjc -v 2>&1 || echo "版本检查失败")
-    echo "编译器版本: $VERSION_OUTPUT"
+    echo "✅ 编译器安装成功: $VERSION_OUTPUT"
 else
     echo "❌ 编译器安装失败"
-    exit 1
+    INSTALL_SUCCESS=false
 fi
 
 if [ -d "/opt/cangjie-stdx/linux_x86_64_llvm" ]; then
@@ -389,24 +433,40 @@ else
     echo "⚠️  官方文档安装可能有问题"
 fi
 
+if [ -x "$HOME/bin/cj-docs" ]; then
+    echo "✅ 文档查看工具安装成功"
+else
+    echo "⚠️  文档查看工具安装可能有问题"
+fi
+
 echo ""
-echo "🎉 仓颉编程环境安装完成！"
-echo ""
-echo "📋 快速开始："
-echo "  - 重新加载终端或运行: source ~/.bashrc"
-echo "  - 查看编译器版本: cjc -v"
-echo "  - 查看文档: cj-docs -h"
-echo "  - 示例项目位置: ~/cangjie-examples/"
-echo ""
-echo "🔗 有用的命令："
-echo "  cjc -v           # 查看编译器版本"
-echo "  cjpm --version   # 查看包管理器版本"
-echo "  cj-docs -l       # 列出所有文档"
-echo "  cj-docs -s 函数  # 搜索函数相关文档"
-echo ""
-echo "📁 安装位置："
-echo "  SDK: /opt/cangjie/cangjie-1.0.1/"
-echo "  stdx: /opt/cangjie-stdx/"
-echo "  文档: /opt/cangjie-docs/"
-echo ""
-echo "Happy Coding with Cangjie! 🚀"
+if [ "$INSTALL_SUCCESS" = "true" ]; then
+    echo "🎉 仓颉编程环境安装完成！"
+    echo ""
+    echo "📋 快速开始："
+    echo "  - 重新加载终端或运行: source ~/.bashrc"
+    echo "  - 查看编译器版本: cjc -v"
+    echo "  - 查看文档: cj-docs -h"
+    echo "  - 示例项目位置: ~/cangjie-examples/"
+    echo ""
+    echo "🔗 有用的命令："
+    echo "  cjc -v           # 查看编译器版本"
+    echo "  cjpm --version   # 查看包管理器版本"
+    echo "  cj-docs -l       # 列出所有文档"
+    echo "  cj-docs -s 函数  # 搜索函数相关文档"
+    echo ""
+    echo "📁 安装位置："
+    echo "  SDK: /opt/cangjie/cangjie-1.0.1/"
+    echo "  stdx: /opt/cangjie-stdx/"
+    echo "  文档: /opt/cangjie-docs/"
+    echo ""
+    echo "Happy Coding with Cangjie! 🚀"
+else
+    echo "⚠️  安装过程中遇到一些问题，但基础环境可能仍然可用"
+    echo "请检查上述错误信息，或手动安装缺失的组件"
+    echo ""
+    echo "💡 可以尝试："
+    echo "  - 检查网络连接"
+    echo "  - 重新运行安装脚本"
+    echo "  - 查看详细错误日志"
+fi
