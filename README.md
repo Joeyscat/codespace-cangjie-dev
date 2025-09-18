@@ -10,7 +10,7 @@
 2. 等待自动安装仓颉编程环境（约 3-5 分钟）
 3. 安装完成后即可开始开发
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Joeyscat/blogcj)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Joeyscat/codespace-cangjie-dev)
 
 ### 手动安装
 
@@ -18,8 +18,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Joeyscat/blogcj.git
-cd blogcj
+git clone https://github.com/Joeyscat/codespace-cangjie-dev.git
+cd codespace-cangjie-dev
 
 # 运行安装脚本
 ./.devcontainer/install-cangjie.sh
