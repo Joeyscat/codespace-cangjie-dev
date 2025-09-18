@@ -1,0 +1,52 @@
+{
+  "name": "仓颉编程环境",
+  "image": "mcr.microsoft.com/devcontainers/universal:2-linux",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-markdown",
+        "yzhang.markdown-all-in-one",
+        "DavidAnson.vscode-markdownlint",
+        "ms-vscode.hexeditor",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "files.associations": {
+          "*.cj": "cangjie"
+        },
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false
+      }
+    }
+  },
+  "postCreateCommand": ".devcontainer/install-cangjie.sh",
+  "remoteUser": "codespace",
+  "forwardPorts": [
+    8080,
+    3000,
+    8000,
+    9000
+  ],
+  "portsAttributes": {
+    "8080": {
+      "label": "仓颉 HTTP 服务器",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "开发服务器",
+      "onAutoForward": "silent"
+    }
+  }
+}

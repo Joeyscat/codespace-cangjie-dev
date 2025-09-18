@@ -1,0 +1,151 @@
+name: 测试仓颉环境安装
+
+on:
+  push:
+    paths:
+      - '.devcontainer/**'
+      - '.github/workflows/test-cangjie-setup.yml'
+  pull_request:
+    paths:
+      - '.devcontainer/**'
+  workflow_dispatch:
+
+jobs:
+  test-cangjie-installation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置 Ubuntu 环境
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl wget unzip tar tree jq build-essential libssl-dev pkg-config
+        
+    - name: 测试仓颉安装脚本
+      run: |
+        # 给脚本执行权限
+        chmod +x .devcontainer/install-cangjie.sh
+        
+        # 运行安装脚本（跳过交互式部分）
+        timeout 600 ./.devcontainer/install-cangjie.sh || {
+          echo "安装脚本执行超时或失败"
+          exit 1
+        }
+        
+    - name: 验证安装结果
+      run: |
+        # 刷新环境变量
+        source ~/.bashrc || true
+        
+        # 检查仓颉编译器
+        if [ -x "/opt/cangjie/cangjie-1.0.1/bin/cjc" ]; then
+          echo "✅ 仓颉编译器安装成功"
+          /opt/cangjie/cangjie-1.0.1/bin/cjc -v || echo "编译器版本检查失败"
+        else
+          echo "❌ 仓颉编译器未找到"
+          exit 1
+        fi
+        
+        # 检查 stdx 扩展库
+        if [ -d "/opt/cangjie-stdx/linux_x86_64_llvm" ]; then
+          echo "✅ stdx 扩展库安装成功"
+          ls -la /opt/cangjie-stdx/linux_x86_64_llvm/
+        else
+          echo "❌ stdx 扩展库未找到"
+          exit 1
+        fi
+        
+        # 检查文档
+        if [ -d "/opt/cangjie-docs/docs" ]; then
+          echo "✅ 官方文档安装成功"
+          find /opt/cangjie-docs/docs -name "*.md" | head -5
+        else
+          echo "⚠️ 官方文档未找到"
+        fi
+        
+        # 检查文档工具
+        if [ -x "$HOME/bin/cj-docs" ]; then
+          echo "✅ 文档查看工具安装成功"
+          export PATH="$HOME/bin:$PATH"
+          cj-docs -h | head -5
+        else
+          echo "❌ 文档查看工具未找到"
+        fi
+        
+    - name: 测试示例项目编译
+      run: |
+        # 设置环境变量
+        export CANGJIE_HOME="/opt/cangjie/cangjie-1.0.1"
+        export PATH="$CANGJIE_HOME/bin:$PATH"
+        export LD_LIBRARY_PATH="$CANGJIE_HOME/lib:$LD_LIBRARY_PATH"
+        
+        # 测试 Hello World 项目
+        if [ -d "$HOME/cangjie-examples/hello-world" ]; then
+          echo "✅ 发现 Hello World 示例项目"
+          cd "$HOME/cangjie-examples/hello-world"
+          
+          # 尝试编译
+          if [ -f "cjpm.toml" ] && [ -f "src/main.cj" ]; then
+            echo "尝试编译 Hello World 项目..."
+            $CANGJIE_HOME/bin/cjpm build && echo "✅ Hello World 编译成功" || echo "❌ Hello World 编译失败"
+          else
+            echo "⚠️ Hello World 项目文件不完整"
+          fi
+        else
+          echo "❌ Hello World 示例项目未找到"
+        fi
+        
+    - name: 生成安装报告
+      if: always()
+      run: |
+        echo "=== 仓颉环境安装报告 ===" > installation-report.txt
+        echo "时间: $(date)" >> installation-report.txt
+        echo "" >> installation-report.txt
+        
+        echo "## 安装状态" >> installation-report.txt
+        
+        if [ -x "/opt/cangjie/cangjie-1.0.1/bin/cjc" ]; then
+          echo "- ✅ 仓颉 SDK: 已安装" >> installation-report.txt
+          echo "  版本: $(/opt/cangjie/cangjie-1.0.1/bin/cjc -v 2>&1 | head -1 || echo '获取失败')" >> installation-report.txt
+        else
+          echo "- ❌ 仓颉 SDK: 未安装" >> installation-report.txt
+        fi
+        
+        if [ -d "/opt/cangjie-stdx/linux_x86_64_llvm" ]; then
+          echo "- ✅ stdx 扩展库: 已安装" >> installation-report.txt
+          echo "  文件数: $(find /opt/cangjie-stdx/linux_x86_64_llvm -name "*.so" | wc -l) 个动态库" >> installation-report.txt
+        else
+          echo "- ❌ stdx 扩展库: 未安装" >> installation-report.txt
+        fi
+        
+        if [ -d "/opt/cangjie-docs/docs" ]; then
+          echo "- ✅ 官方文档: 已安装" >> installation-report.txt
+          echo "  文档数: $(find /opt/cangjie-docs/docs -name "*.md" | wc -l) 个文件" >> installation-report.txt
+        else
+          echo "- ⚠️ 官方文档: 未安装" >> installation-report.txt
+        fi
+        
+        if [ -x "$HOME/bin/cj-docs" ]; then
+          echo "- ✅ 文档工具: 已安装" >> installation-report.txt
+        else
+          echo "- ❌ 文档工具: 未安装" >> installation-report.txt
+        fi
+        
+        echo "" >> installation-report.txt
+        echo "## 磁盘使用" >> installation-report.txt
+        du -sh /opt/cangjie* 2>/dev/null >> installation-report.txt || echo "无法获取磁盘使用信息" >> installation-report.txt
+        
+        echo "" >> installation-report.txt
+        echo "## 目录结构" >> installation-report.txt
+        tree /opt/ -L 3 2>/dev/null >> installation-report.txt || ls -la /opt/ >> installation-report.txt
+        
+        cat installation-report.txt
+        
+    - name: 上传安装报告
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cangjie-installation-report
+        path: installation-report.txt
